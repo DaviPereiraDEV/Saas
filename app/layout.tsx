@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
-import SnowEffect from "@/components/SnowEffect";
+import GothamBackdrop from "@/components/GothamBackdrop";
+import GothamAtmosphere from "@/components/GothamAtmosphere";
 
 export const metadata: Metadata = {
   title: "Wayne Automations",
-  description: "Sistema completo de automação para Instagram",
+  description: "Operações digitais Wayne — automação e conteúdo com padrão Gotham.",
 };
 
 export default function RootLayout({
@@ -16,7 +17,8 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <SnowEffect />
+        <GothamBackdrop />
+        <GothamAtmosphere />
         <div className="app-container">
           <Sidebar />
           <main className="main-content">

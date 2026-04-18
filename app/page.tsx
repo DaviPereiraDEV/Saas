@@ -1,8 +1,8 @@
 export default function Dashboard() {
   return (
     <div>
-      <h1 className="page-title">Dashboard</h1>
-      <p className="page-subtitle">Visão geral do sistema de automação</p>
+      <h1 className="page-title">Comando</h1>
+      <p className="page-subtitle">Visão geral das operações — estilo Wayne, execução precisa</p>
 
       <div style={{
         display: 'grid',

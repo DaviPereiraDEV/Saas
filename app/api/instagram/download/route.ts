@@ -36,12 +36,13 @@ export async function POST(request: Request) {
     fs.writeFileSync(inputPath, Buffer.from(videoBuffer));
 
     // 3. Rodar ffmpeg para remover metadados
-    if (!ffmpegPath) {
+    const ff = ffmpegPath;
+    if (!ff) {
       throw new Error("ffmpeg-static path not found");
     }
 
     await new Promise((resolve, reject) => {
-      const ffmpeg = spawn(ffmpegPath, [
+      const ffmpeg = spawn(ff, [
         '-i', inputPath,
         '-map_metadata', '-1', // Remove all metadata
         '-c:v', 'copy',        // Copy video stream without re-encoding

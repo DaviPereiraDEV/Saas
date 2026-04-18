@@ -1,7 +1,7 @@
 "use client";
 
 import { Camera, Plus, Wifi, WifiOff, Trash2, ExternalLink, AlertTriangle, Loader2, Info } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 interface Account {
@@ -15,6 +15,20 @@ interface Account {
 }
 
 export default function AccountsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ padding: "2rem", color: "var(--text-secondary)" }}>
+          Carregando contas…
+        </div>
+      }
+    >
+      <AccountsPageInner />
+    </Suspense>
+  );
+}
+
+function AccountsPageInner() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState("");

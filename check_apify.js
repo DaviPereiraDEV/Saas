@@ -1,7 +1,13 @@
 const { ApifyClient } = require('apify-client');
 require('dotenv').config({ path: '.env.local' });
 
-const client = new ApifyClient({ token: process.env.APIFY_TOKEN });
+const raw = process.env.APIFY_TOKENS || process.env.APIFY_TOKEN || '';
+const tokens = raw.split(',').map((t) => t.trim()).filter(Boolean);
+if (!tokens.length) {
+  console.error('Defina APIFY_TOKENS ou APIFY_TOKEN no .env.local');
+  process.exit(1);
+}
+const client = new ApifyClient({ token: tokens[0] });
 
 async function run() {
   const inputProfile = {

@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
+import { ApifyClient } from 'apify-client';
 
-const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
-// Actor: apify/instagram-scraper — busca posts de um perfil público
-const ACTOR_ID = 'apify~instagram-scraper';
+const APIFY_TOKEN = process.env.APIFY_TOKEN;
 
 export async function POST(request: Request) {
   try {
@@ -13,72 +12,64 @@ export async function POST(request: Request) {
     }
 
     if (!APIFY_TOKEN) {
-      return NextResponse.json({ error: 'APIFY_API_TOKEN não configurada' }, { status: 500 });
+      return NextResponse.json({ error: 'APIFY_TOKEN não configurada' }, { status: 500 });
     }
 
     const cleanUsername = username.replace('@', '').trim();
 
-    // 1. Executar o actor do Apify de forma síncrona (aguarda resultado)
-    // Usando run-sync-get-dataset-items para obter os dados diretamente
-    const runUrl = `https://api.apify.com/v2/acts/${ACTOR_ID}/run-sync-get-dataset-items?token=${APIFY_TOKEN}`;
-
-    const response = await fetch(runUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        directUrls: [`https://www.instagram.com/${cleanUsername}/`],
-        resultsType: 'posts',
-        resultsLimit: 30,
-        // Pegar apenas vídeos/reels
-        searchType: 'user',
-        addParentData: false,
-      }),
+    // Initialize the ApifyClient with API token
+    const client = new ApifyClient({
+      token: APIFY_TOKEN,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Apify error:', response.status, errorText);
-      return NextResponse.json(
-        { error: `Erro ao buscar dados do Instagram. Status: ${response.status}` },
-        { status: 502 }
-      );
-    }
+    const inputReels = {
+      username: [cleanUsername],
+      resultsLimit: 9999,
+    };
 
-    const data = await response.json();
+    const inputProfile = {
+      usernames: [cleanUsername],
+    };
 
-    // 2. Filtrar e formatar os resultados — pegar apenas posts com vídeo
-    const videos = data
-      .filter((post: any) => post.type === 'Video' || post.videoUrl)
-      .map((post: any, index: number) => ({
-        id: index + 1,
-        shortCode: post.shortCode || '',
-        caption: post.caption || '(sem legenda)',
-        videoUrl: post.videoUrl || '',
-        thumbnailUrl: post.displayUrl || post.previewUrl || '',
-        likes: post.likesCount || 0,
-        views: post.videoViewCount || post.videoPlayCount || 0,
-        timestamp: post.timestamp || '',
-        duration: '', // Instagram API não retorna duração diretamente
-      }));
+    // Run both actors in parallel to save time
+    const [runReels, runProfile] = await Promise.all([
+      client.actor("apify/instagram-reel-scraper").call(inputReels),
+      client.actor("apify/instagram-profile-scraper").call(inputProfile),
+    ]);
 
-    // 3. Buscar dados do perfil (pegar do primeiro resultado se existir)
-    const profileData = data.length > 0 ? {
+    // Fetch and format Actor results
+    const [reelsDataset, profileDataset] = await Promise.all([
+      client.dataset(runReels.defaultDatasetId).listItems(),
+      client.dataset(runProfile.defaultDatasetId).listItems(),
+    ]);
+
+    const items = reelsDataset.items;
+    const profileItem = profileDataset.items[0] || {};
+
+    const videos = items.map((post: any, index: number) => ({
+      id: index + 1,
+      shortCode: post.shortCode || '',
+      caption: post.caption || '(sem legenda)',
+      videoUrl: post.videoUrl || '',
+      thumbnailUrl: post.displayUrl || post.thumbnailUrl || '',
+      likes: post.likesCount || 0,
+      comments: post.commentsCount || 0,
+      views: post.videoViewCount || post.viewCount || post.playCount || 0,
+      timestamp: post.timestamp || '',
+    }));
+
+    const profileData = {
       username: cleanUsername,
-      fullName: data[0]?.ownerFullName || cleanUsername,
-      profilePicUrl: data[0]?.ownerProfilePicUrl || '',
-      followersCount: data[0]?.ownerId || 0,
-    } : {
-      username: cleanUsername,
-      fullName: cleanUsername,
-      profilePicUrl: '',
-      followersCount: 0,
+      fullName: profileItem.fullName || items[0]?.ownerFullName || cleanUsername,
+      profilePicUrl: profileItem.profilePicUrlHD || profileItem.profilePicUrl || '',
+      followersCount: profileItem.followersCount || 0,
     };
 
     return NextResponse.json({
       success: true,
       profile: profileData,
       videos,
-      totalPosts: data.length,
+      totalPosts: items.length,
       totalVideos: videos.length,
     });
 

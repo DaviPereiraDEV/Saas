@@ -1,7 +1,7 @@
 "use client";
 
-import { Search, Plus, X, Download, Play, FolderOpen, Trash2, ExternalLink, Sparkles, Loader2, AlertTriangle } from "lucide-react";
-import { useState } from "react";
+import { Search, Plus, X, Download, Play, FolderOpen, Trash2, ExternalLink, Sparkles, Loader2, AlertTriangle, Heart, MessageCircle, Eye, CalendarPlus } from "lucide-react";
+import { useState, useEffect } from "react";
 
 interface VideoItem {
   id: number;
@@ -10,6 +10,7 @@ interface VideoItem {
   videoUrl: string;
   thumbnailUrl: string;
   likes: number;
+  comments: number;
   views: number;
   timestamp: string;
 }
@@ -28,14 +29,43 @@ export default function InspiracoesPage() {
   const [showSearch, setShowSearch] = useState(false);
   const [searchUsername, setSearchUsername] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [searchProgress, setSearchProgress] = useState(0);
   const [searchError, setSearchError] = useState("");
   const [selectedModel, setSelectedModel] = useState<Model | null>(null);
   const [downloadingIds, setDownloadingIds] = useState<Set<number>>(new Set());
+  const [modelToDelete, setModelToDelete] = useState<number | null>(null);
+
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Carregar modelos do localStorage ao montar o componente
+  useEffect(() => {
+    const saved = localStorage.getItem("wayne_inspiracoes_models");
+    if (saved) {
+      try { setModels(JSON.parse(saved)); } catch {}
+    }
+    setIsLoaded(true);
+  }, []);
+
+  // Salvar modelos no localStorage sempre que a lista mudar
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem("wayne_inspiracoes_models", JSON.stringify(models));
+    }
+  }, [models, isLoaded]);
 
   const handleSearch = async () => {
     if (!searchUsername.trim()) return;
     setIsSearching(true);
     setSearchError("");
+    setSearchProgress(0);
+
+    const progressInterval = setInterval(() => {
+      setSearchProgress(prev => {
+        if (prev >= 95) return prev;
+        const increment = prev < 50 ? Math.random() * 5 + 2 : Math.random() * 2 + 0.5;
+        return Math.min(95, prev + increment);
+      });
+    }, 800);
 
     try {
       const res = await fetch("/api/instagram/scrape", {
@@ -47,16 +77,22 @@ export default function InspiracoesPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        clearInterval(progressInterval);
         setSearchError(data.error || "Erro ao buscar perfil.");
         setIsSearching(false);
         return;
       }
 
       if (data.videos.length === 0) {
+        clearInterval(progressInterval);
         setSearchError("Nenhum vídeo encontrado para este perfil. Verifique se é um perfil público e possui reels/vídeos.");
         setIsSearching(false);
         return;
       }
+
+      clearInterval(progressInterval);
+      setSearchProgress(100);
+      await new Promise(r => setTimeout(r, 500));
 
       const newModel: Model = {
         id: Date.now(),
@@ -71,8 +107,10 @@ export default function InspiracoesPage() {
       setSearchUsername("");
       setShowSearch(false);
     } catch (err: any) {
+      clearInterval(progressInterval);
       setSearchError("Erro de conexão. Tente novamente.");
     } finally {
+      clearInterval(progressInterval);
       setIsSearching(false);
     }
   };
@@ -254,8 +292,9 @@ export default function InspiracoesPage() {
                 </button>
                 {selectedModel.profilePicUrl ? (
                   <img
-                    src={selectedModel.profilePicUrl}
+                    src={`/api/media/proxy?url=${encodeURIComponent(selectedModel.profilePicUrl)}`}
                     alt={selectedModel.username}
+                    referrerPolicy="no-referrer"
                     style={{ width: "40px", height: "40px", borderRadius: "50%", objectFit: "cover" }}
                   />
                 ) : (
@@ -292,96 +331,122 @@ export default function InspiracoesPage() {
               {selectedModel.videos.map((video) => {
                 const isDownloading = downloadingIds.has(video.id);
                 return (
-                  <div key={video.id} className="glass-panel" style={{ overflow: "hidden", position: "relative" }}>
-                    {/* Video Thumbnail */}
-                    <div style={{
-                      height: "300px", position: "relative", cursor: "pointer",
-                      backgroundColor: "#111",
-                    }}>
-                      {video.thumbnailUrl ? (
-                        <img
-                          src={video.thumbnailUrl}
-                          alt={video.caption?.slice(0, 30) || "Video"}
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        />
-                      ) : (
-                        <div style={{
-                          width: "100%", height: "100%",
-                          display: "flex", justifyContent: "center", alignItems: "center",
-                          background: `hsl(${(video.id * 37) % 360}, 25%, 18%)`,
-                        }}>
-                          <Play size={32} color="rgba(255,255,255,0.3)" />
-                        </div>
-                      )}
-
-                      {/* Play overlay */}
+                  <div key={video.id} className="video-card glass-panel" style={{ 
+                    overflow: "hidden", 
+                    position: "relative",
+                    height: "360px",
+                    cursor: "pointer",
+                    borderRadius: "16px"
+                  }}>
+                    {/* Video Thumbnail Full Cover */}
+                    {video.thumbnailUrl ? (
+                      <img
+                        src={`/api/media/proxy?url=${encodeURIComponent(video.thumbnailUrl)}`}
+                        alt={video.caption?.slice(0, 30) || "Video"}
+                        referrerPolicy="no-referrer"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : (
                       <div style={{
-                        position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+                        width: "100%", height: "100%",
                         display: "flex", justifyContent: "center", alignItems: "center",
-                        background: "rgba(0,0,0,0.2)", transition: "background 0.2s",
+                        background: `hsl(${(video.id * 37) % 360}, 25%, 18%)`,
                       }}>
-                        <div style={{
-                          width: "48px", height: "48px", borderRadius: "50%",
-                          backgroundColor: "rgba(0,0,0,0.5)", display: "flex",
-                          justifyContent: "center", alignItems: "center",
-                          backdropFilter: "blur(4px)",
-                        }}>
-                          <Play size={20} color="#fff" fill="#fff" />
+                        <Play size={32} color="rgba(255,255,255,0.3)" />
+                      </div>
+                    )}
+
+                    {/* Play icon at top right when not hovered */}
+                    <div className="play-icon-static" style={{
+                      position: "absolute", top: "12px", right: "12px",
+                      width: "32px", height: "32px", borderRadius: "50%",
+                      backgroundColor: "rgba(0,0,0,0.5)", display: "flex",
+                      justifyContent: "center", alignItems: "center",
+                      backdropFilter: "blur(4px)",
+                    }}>
+                      <Play size={14} color="#fff" fill="#fff" />
+                    </div>
+
+                    {/* Hover Overlay */}
+                    <div className="video-card-overlay" style={{
+                      position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+                      background: "rgba(0,0,0,0.7)",
+                      backdropFilter: "blur(2px)",
+                      display: "flex", flexDirection: "column",
+                      padding: "1.2rem",
+                    }}>
+                      
+                      {/* Center Stats */}
+                      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "1rem" }}>
+                        <div style={{ display: "flex", gap: "1.5rem" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                            <Heart size={16} color="#ef4444" />
+                            <span style={{ fontSize: "0.9rem", fontWeight: 600 }}>{formatNumber(video.likes)}</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                            <MessageCircle size={16} color="#3b82f6" />
+                            <span style={{ fontSize: "0.9rem", fontWeight: 600 }}>{formatNumber(video.comments)}</span>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "var(--text-secondary)" }}>
+                          <Eye size={14} />
+                          <span style={{ fontSize: "0.85rem" }}>{formatNumber(video.views)}</span>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", width: "100%" }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDownload(video); }}
+                            disabled={isDownloading}
+                            style={{
+                              flex: 1, padding: "0.6rem",
+                              background: isDownloading ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.15)",
+                              border: "1px solid rgba(255,255,255,0.2)",
+                              borderRadius: "8px", cursor: isDownloading ? "default" : "pointer",
+                              color: "#fff", fontSize: "0.8rem", fontWeight: 500,
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem",
+                              transition: "all 0.2s", fontFamily: "inherit",
+                            }}
+                            onMouseEnter={(e) => { if (!isDownloading) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.25)"; }}
+                            onMouseLeave={(e) => { if (!isDownloading) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.15)"; }}
+                          >
+                            {isDownloading ? (
+                              <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> ...</>
+                            ) : (
+                              <><Download size={14} /> Baixar</>
+                            )}
+                          </button>
+                          
+                          <button
+                            onClick={(e) => { e.stopPropagation(); /* TODO: Implement Agendar */ }}
+                            style={{
+                              flex: 1, padding: "0.6rem",
+                              background: "rgba(0,0,0,0.4)",
+                              border: "1px solid rgba(255,255,255,0.1)",
+                              borderRadius: "8px", cursor: "pointer",
+                              color: "#fff", fontSize: "0.8rem", fontWeight: 500,
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem",
+                              transition: "all 0.2s", fontFamily: "inherit",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.6)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.4)"; }}
+                          >
+                            <CalendarPlus size={14} /> Agendar
+                          </button>
                         </div>
                       </div>
 
-                      {/* Stats */}
-                      {video.views > 0 && (
-                        <span style={{
-                          position: "absolute", bottom: "8px", left: "8px",
-                          backgroundColor: "rgba(0,0,0,0.75)", padding: "0.15rem 0.5rem",
-                          borderRadius: "4px", fontSize: "0.75rem", fontWeight: 500,
+                      {/* Caption at bottom */}
+                      <div style={{ marginTop: "auto" }}>
+                        <p style={{
+                          fontSize: "0.75rem", color: "rgba(255,255,255,0.8)",
+                          overflow: "hidden", textOverflow: "ellipsis",
+                          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any,
+                          lineHeight: 1.4,
                         }}>
-                          ▶ {formatNumber(video.views)}
-                        </span>
-                      )}
-                      {video.likes > 0 && (
-                        <span style={{
-                          position: "absolute", bottom: "8px", right: "8px",
-                          backgroundColor: "rgba(0,0,0,0.75)", padding: "0.15rem 0.5rem",
-                          borderRadius: "4px", fontSize: "0.75rem", fontWeight: 500,
-                        }}>
-                          ♥ {formatNumber(video.likes)}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Info & Download */}
-                    <div style={{ padding: "0.8rem 1rem" }}>
-                      <p style={{
-                        fontSize: "0.8rem", color: "var(--text-secondary)",
-                        overflow: "hidden", textOverflow: "ellipsis",
-                        display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any,
-                        marginBottom: "0.6rem", lineHeight: 1.4,
-                      }}>
-                        {video.caption || "(sem legenda)"}
-                      </p>
-                      <button
-                        onClick={() => handleDownload(video)}
-                        disabled={isDownloading}
-                        style={{
-                          width: "100%", padding: "0.55rem",
-                          background: isDownloading ? "rgba(59,130,246,0.2)" : "rgba(59,130,246,0.1)",
-                          border: "1px solid rgba(59,130,246,0.3)",
-                          borderRadius: "8px", cursor: isDownloading ? "default" : "pointer",
-                          color: "#3b82f6", fontSize: "0.8rem", fontWeight: 500,
-                          display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem",
-                          transition: "all 0.2s", fontFamily: "inherit",
-                        }}
-                        onMouseEnter={(e) => { if (!isDownloading) e.currentTarget.style.backgroundColor = "rgba(59,130,246,0.2)"; }}
-                        onMouseLeave={(e) => { if (!isDownloading) e.currentTarget.style.backgroundColor = "rgba(59,130,246,0.1)"; }}
-                      >
-                        {isDownloading ? (
-                          <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Processando...</>
-                        ) : (
-                          <><Download size={14} /> Download (Sem Metadados)</>
-                        )}
-                      </button>
+                          {video.caption || "(sem legenda)"}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 );
@@ -417,8 +482,9 @@ export default function InspiracoesPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                   {model.profilePicUrl ? (
                     <img
-                      src={model.profilePicUrl}
+                      src={`/api/media/proxy?url=${encodeURIComponent(model.profilePicUrl)}`}
                       alt={model.username}
+                      referrerPolicy="no-referrer"
                       style={{ width: "50px", height: "50px", borderRadius: "50%", objectFit: "cover" }}
                     />
                   ) : (
@@ -454,7 +520,7 @@ export default function InspiracoesPage() {
                     <ExternalLink size={14} /> Ver Vídeos
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleRemoveModel(model.id); }}
+                    onClick={(e) => { e.stopPropagation(); setModelToDelete(model.id); }}
                     style={{
                       background: "none", border: "none", cursor: "pointer",
                       color: "var(--text-secondary)", padding: "0.5rem",
@@ -479,7 +545,143 @@ export default function InspiracoesPage() {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+        .video-card-overlay {
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+        .play-icon-static {
+          opacity: 1;
+          transition: opacity 0.3s ease;
+        }
+        .video-card:hover .video-card-overlay {
+          opacity: 1;
+        }
+        .video-card:hover .play-icon-static {
+          opacity: 0;
+        }
       `}</style>
+
+      {/* Loading Modal Overlay */}
+      {isSearching && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.8)", backdropFilter: "blur(4px)",
+          display: "flex", justifyContent: "center", alignItems: "center",
+          zIndex: 9999,
+        }}>
+          <div className="glass-panel" style={{
+            width: "400px", padding: "2.5rem", borderRadius: "16px",
+            display: "flex", flexDirection: "column", alignItems: "center",
+            textAlign: "center"
+          }}>
+            {/* Logo/Icon */}
+            <div style={{
+              width: "64px", height: "64px", borderRadius: "16px",
+              background: "linear-gradient(135deg, #1e3a8a, #3b82f6)",
+              display: "flex", justifyContent: "center", alignItems: "center",
+              marginBottom: "1.5rem", boxShadow: "0 8px 32px rgba(59,130,246,0.3)"
+            }}>
+              <Loader2 size={32} color="#fff" style={{ animation: "spin 2s linear infinite" }} />
+            </div>
+
+            <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff", marginBottom: "0.5rem" }}>
+              Importando {searchUsername.startsWith('@') ? searchUsername : `@${searchUsername}`}
+            </h2>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "2rem" }}>
+              Buscando todos os vídeos e posts...
+            </p>
+
+            <div style={{ width: "100%", marginBottom: "1.5rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem", fontSize: "0.85rem" }}>
+                <span style={{ color: "var(--text-secondary)" }}>Buscando via API...</span>
+                <span style={{ color: "#3b82f6", fontWeight: 600 }}>{Math.round(searchProgress)}%</span>
+              </div>
+              <div style={{ width: "100%", height: "6px", backgroundColor: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
+                <div style={{
+                  width: `${searchProgress}%`, height: "100%",
+                  backgroundColor: "#3b82f6", transition: "width 0.3s ease",
+                }} />
+              </div>
+            </div>
+
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", opacity: 0.7, marginBottom: "1.5rem" }}>
+              Isso pode levar alguns minutos
+            </p>
+
+            <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "1rem", textAlign: "left" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", color: "#fff" }}>
+                <Loader2 size={18} color="#3b82f6" style={{ animation: "spin 2s linear infinite" }} />
+                <span style={{ fontSize: "0.9rem" }}>Buscando posts via API</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", color: "var(--text-secondary)" }}>
+                <div style={{ width: "18px", height: "18px", borderRadius: "50%", border: "2px solid rgba(255,255,255,0.2)" }} />
+                <span style={{ fontSize: "0.9rem" }}>Salvando localmente</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {modelToDelete !== null && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
+          display: "flex", justifyContent: "center", alignItems: "center",
+          zIndex: 10000,
+        }} onClick={() => setModelToDelete(null)}>
+          <div className="glass-panel" style={{
+            width: "350px", padding: "2rem", borderRadius: "16px",
+            display: "flex", flexDirection: "column", alignItems: "center",
+            textAlign: "center"
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              width: "56px", height: "56px", borderRadius: "50%",
+              backgroundColor: "rgba(239,68,68,0.1)", display: "flex",
+              justifyContent: "center", alignItems: "center", marginBottom: "1rem"
+            }}>
+              <Trash2 size={28} color="#ef4444" />
+            </div>
+            <h3 style={{ fontSize: "1.2rem", fontWeight: 600, marginBottom: "0.5rem" }}>
+              Excluir Modelo
+            </h3>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
+              Tem certeza que deseja remover esta modelo? Todos os vídeos importados sumirão da sua lista.
+            </p>
+            <div style={{ display: "flex", gap: "1rem", width: "100%" }}>
+              <button
+                onClick={() => setModelToDelete(null)}
+                style={{
+                  flex: 1, padding: "0.7rem", borderRadius: "8px",
+                  background: "rgba(255,255,255,0.05)", color: "#fff",
+                  border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer",
+                  fontWeight: 500, transition: "background 0.2s"
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)"}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)"}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  handleRemoveModel(modelToDelete);
+                  setModelToDelete(null);
+                }}
+                style={{
+                  flex: 1, padding: "0.7rem", borderRadius: "8px",
+                  background: "#ef4444", color: "#fff",
+                  border: "none", cursor: "pointer",
+                  fontWeight: 500, transition: "background 0.2s"
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#dc2626"}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#ef4444"}
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

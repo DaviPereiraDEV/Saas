@@ -1,4 +1,10 @@
 import { NextResponse } from 'next/server';
+import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
+import os from 'os';
+import fs from 'fs';
+import { spawn } from 'child_process';
+import ffmpegPath from 'ffmpeg-static';
 
 export async function POST(request: Request) {
   try {
@@ -20,20 +26,55 @@ export async function POST(request: Request) {
     }
 
     const videoBuffer = await videoResponse.arrayBuffer();
+    
+    // 2. Salvar buffer num arquivo temporário
+    const tempDir = os.tmpdir();
+    const tempId = uuidv4();
+    const inputPath = path.join(tempDir, `input_${tempId}.mp4`);
+    const outputPath = path.join(tempDir, `output_${tempId}.mp4`);
+    
+    fs.writeFileSync(inputPath, Buffer.from(videoBuffer));
 
-    // 2. Retornar o vídeo como download
-    // Nota: Para remover metadados de verdade, é necessário o ffmpeg no servidor.
-    // Por enquanto, o vídeo é baixado diretamente (já sem os metadados do Instagram
-    // pois vem da CDN sem o container original com dados EXIF/localização/etc).
-    // Se ffmpeg estiver instalado, podemos integrar uma limpeza real via:
-    // ffmpeg -i input.mp4 -map_metadata -1 -c:v copy -c:a copy output.mp4
+    // 3. Rodar ffmpeg para remover metadados
+    if (!ffmpegPath) {
+      throw new Error("ffmpeg-static path not found");
+    }
 
-    return new NextResponse(videoBuffer, {
+    await new Promise((resolve, reject) => {
+      const ffmpeg = spawn(ffmpegPath, [
+        '-i', inputPath,
+        '-map_metadata', '-1', // Remove all metadata
+        '-c:v', 'copy',        // Copy video stream without re-encoding
+        '-c:a', 'copy',        // Copy audio stream without re-encoding
+        outputPath
+      ]);
+
+      ffmpeg.on('close', (code) => {
+        if (code === 0) resolve(null);
+        else reject(new Error(`FFmpeg error exit code ${code}`));
+      });
+      
+      ffmpeg.on('error', (err) => reject(err));
+    });
+
+    // 4. Ler o arquivo processado
+    const processedVideo = fs.readFileSync(outputPath);
+
+    // 5. Deletar os arquivos temporários após a leitura
+    try {
+      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+    } catch (e) {
+      console.error("Cleanup error", e);
+    }
+
+    // 6. Retornar o vídeo sem metadados como stream de download
+    return new NextResponse(processedVideo, {
       status: 200,
       headers: {
         'Content-Type': 'video/mp4',
         'Content-Disposition': `attachment; filename="${filename || 'video_sem_metadados.mp4'}"`,
-        'Content-Length': String(videoBuffer.byteLength),
+        'Content-Length': String(processedVideo.length),
       },
     });
 

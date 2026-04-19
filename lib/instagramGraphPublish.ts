@@ -23,6 +23,14 @@ export async function exchangeCodeForShortLivedToken(
     throw new Error("META_APP_ID, META_APP_SECRET ou META_REDIRECT_URI ausentes.");
   }
 
+  console.log("=== OAUTH DEBUG ===");
+  console.log("client_id:", appId);
+  console.log("redirect_uri:", redirectUri);
+  console.log("=== TOKEN EXCHANGE ===");
+  console.log("redirect_uri usado na troca:", redirectUri);
+  console.log("code:", code);
+  console.log("code length:", code?.length);
+
   const body = new URLSearchParams({
     client_id: appId,
     client_secret: appSecret,
@@ -38,6 +46,8 @@ export async function exchangeCodeForShortLivedToken(
   });
 
   const data = (await res.json()) as Record<string, unknown>;
+  console.log("Status:", res.status);
+  console.log("Response:", JSON.stringify(data));
   const errMsg =
     (data.error_message as string) ||
     (typeof data.error === "string"

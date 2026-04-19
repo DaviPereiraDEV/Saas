@@ -11,31 +11,19 @@ import {
   fetchInstagramProfile,
 } from "@/lib/instagramGraphPublish";
 
-const LOCALHOST_ACCOUNTS_URL = "http://localhost:3000/accounts";
+const ACCOUNTS_URL = `${process.env.NEXT_PUBLIC_APP_URL}/accounts`;
 
 export async function GET(request: Request) {
   const { userId, created } = await getOrCreateRequestUserId();
-  const url = new URL(request.url);
-  const code = url.searchParams.get("code");
-  console.log("Code recebido:", code);
-  const err = url.searchParams.get("error");
-  const errDesc =
-    url.searchParams.get("error_description") ||
-    url.searchParams.get("error_reason");
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get("code");
+  const error = searchParams.get("error");
 
-  if (err) {
-    console.error("[Instagram OAuth]", err, errDesc);
-    const q = new URLSearchParams({
-      error: "oauth_failed",
-      detail: errDesc || err,
-    });
-    const response = NextResponse.redirect(`${LOCALHOST_ACCOUNTS_URL}?${q.toString()}`);
-    if (created) attachRequestUserCookie(response, userId);
-    return response;
-  }
-
-  if (!code) {
-    const response = NextResponse.redirect(`${LOCALHOST_ACCOUNTS_URL}?error=no_code`);
+  if (error || !code) {
+    const response = NextResponse.redirect(
+      `${ACCOUNTS_URL}?error=cancelled`,
+      { status: 302 },
+    );
     if (created) attachRequestUserCookie(response, userId);
     return response;
   }
@@ -98,14 +86,17 @@ export async function GET(request: Request) {
       },
     });
 
-    const response = NextResponse.redirect("http://localhost:3000/accounts");
+    const response = NextResponse.redirect(
+      `${ACCOUNTS_URL}?success=true`,
+      { status: 302 },
+    );
     if (created) attachRequestUserCookie(response, userId);
     return response;
   } catch (e: unknown) {
     console.error("[Instagram OAuth callback]", e);
     const msg = e instanceof Error ? e.message : "server_error";
     const q = new URLSearchParams({ error: "token_failed", detail: msg });
-    const response = NextResponse.redirect(`${LOCALHOST_ACCOUNTS_URL}?${q.toString()}`);
+    const response = NextResponse.redirect(`${ACCOUNTS_URL}?${q.toString()}`);
     if (created) attachRequestUserCookie(response, userId);
     return response;
   }

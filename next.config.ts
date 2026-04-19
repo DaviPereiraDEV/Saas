@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
     "instagram-private-api",
     "@prisma/client",
   ],
+  allowedDevOrigins: ["luster-discuss-hurried.ngrok-free.dev"],
 };
 
 export default nextConfig;

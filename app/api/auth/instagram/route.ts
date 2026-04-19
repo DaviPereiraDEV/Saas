@@ -6,6 +6,8 @@ import { getMetaOAuthConfig } from "@/lib/metaInstagramEnv";
  */
 export async function GET() {
   const { appId, redirectUri } = getMetaOAuthConfig();
+  console.log("=== AUTH START ===");
+  console.log("redirect_uri enviado para Instagram:", redirectUri);
   console.log("APP_ID usado:", appId);
   console.log("REDIRECT_URI usado:", redirectUri);
   const base =

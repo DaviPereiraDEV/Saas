@@ -7,6 +7,7 @@ type AccountRow = {
   id: string;
   username: string;
   hasSession: boolean;
+  source?: "oauth" | "private";
 };
 
 type StatusRow = {
@@ -196,7 +197,7 @@ export default function BulkPostPage() {
         </h3>
         {accounts.length === 0 ? (
           <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
-            Cadastre contas em <strong>Contas IG (login)</strong> primeiro.
+            Conecte contas em <strong>Contas</strong> (OAuth).
           </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1rem" }}>
@@ -219,6 +220,17 @@ export default function BulkPostPage() {
                   style={{ accentColor: "var(--accent-gold)" }}
                 />
                 @{a.username}
+                {a.source === "oauth" && (
+                  <span
+                    style={{
+                      marginLeft: "0.35rem",
+                      fontSize: "0.7rem",
+                      opacity: 0.75,
+                    }}
+                  >
+                    (API oficial)
+                  </span>
+                )}
               </label>
             ))}
           </div>

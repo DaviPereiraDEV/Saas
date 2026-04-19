@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     "apify-client",
     "ffmpeg-static",
+    "ffprobe-static",
     "instagram-private-api",
     "@prisma/client",
   ],

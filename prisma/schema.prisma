@@ -16,3 +16,20 @@ model PrivateInstagramAccount {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+/// Conta conectada via Instagram Login (api.instagram.com OAuth) — token cifrado.
+model InstagramOAuthAccount {
+  id                String    @id @default(cuid())
+  userId            String
+  instagramUserId   String
+  username          String
+  profilePictureUrl String?
+  accessTokenEnc    String
+  tokenExpiresAt    DateTime?
+  lastError         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([userId, instagramUserId])
+  @@index([userId, createdAt])
+}

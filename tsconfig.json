@@ -24,6 +24,7 @@
   },
   "include": [
     "next-env.d.ts",
+    "ffprobe-static.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",

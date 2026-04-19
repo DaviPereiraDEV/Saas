@@ -2,13 +2,12 @@
 
 import NextLink from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Clapperboard, CalendarClock, Search, Moon, KeyRound, Send } from 'lucide-react';
+import { LayoutDashboard, Users, Clapperboard, CalendarClock, Search, Moon, Send } from 'lucide-react';
 import React from 'react';
 
 const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Contas', href: '/accounts', icon: Users },
-  { name: 'Contas IG (login)', href: '/ig-login', icon: KeyRound },
   { name: 'Postagem em massa', href: '/postagem-massa', icon: Send },
   { name: 'Inspirações', href: '/inspiracoes', icon: Search },
   { name: 'Biblioteca', href: '/library', icon: Clapperboard },

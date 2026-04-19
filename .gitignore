@@ -43,5 +43,9 @@ next-env.d.ts
 # prisma local db
 /prisma/dev.db
 /prisma/dev.db-journal
+
+# temp reels for Graph API (public HTTPS URL)
+/public/uploads/oauth-reels/*
+!/public/uploads/oauth-reels/.gitkeep
 ".env" 
 ".env.local" 

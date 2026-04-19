@@ -13,6 +13,8 @@ import {
 } from "instagram-private-api";
 import { decryptAccountPassword } from "@/lib/accountCrypto";
 import { extractVideoCoverJpeg } from "@/lib/videoCover";
+import { getMetaOAuthConfig } from "@/lib/metaInstagramEnv";
+import { publishReelFromBuffer } from "@/lib/instagramGraphPublish";
 import type { PrismaClient } from "@prisma/client";
 
 export function mapInstagramError(err: unknown): string {
@@ -156,6 +158,51 @@ export async function postarReelBuffer(
   videoBuffer: Buffer,
   caption: string,
 ): Promise<{ success: boolean; username: string; error?: string }> {
+  const oauthRow = await prisma.instagramOAuthAccount.findUnique({
+    where: { id: accountId },
+  });
+  if (oauthRow) {
+    try {
+      const accessToken = decryptAccountPassword(oauthRow.accessTokenEnc);
+      const { publicBaseUrl } = getMetaOAuthConfig();
+      const base =
+        publicBaseUrl ||
+        (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+      const r = await publishReelFromBuffer({
+        igUserId: oauthRow.instagramUserId,
+        accessToken,
+        videoBuffer,
+        caption,
+        publicBaseUrl: base,
+        username: oauthRow.username,
+      });
+      if (!r.success) {
+        await prisma.instagramOAuthAccount.update({
+          where: { id: accountId },
+          data: { lastError: r.error ?? null },
+        });
+      } else {
+        await prisma.instagramOAuthAccount.update({
+          where: { id: accountId },
+          data: { lastError: null },
+        });
+      }
+      return {
+        success: r.success,
+        username: oauthRow.username,
+        error: r.error,
+      };
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error ? error.message : "Erro na API do Instagram.";
+      await prisma.instagramOAuthAccount.update({
+        where: { id: accountId },
+        data: { lastError: msg },
+      });
+      return { success: false, username: oauthRow.username, error: msg };
+    }
+  }
+
   const row = await prisma.privateInstagramAccount.findUnique({
     where: { id: accountId },
   });

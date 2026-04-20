@@ -31,18 +31,16 @@ export async function exchangeCodeForShortLivedToken(
   console.log("code:", code);
   console.log("code length:", code?.length);
 
-  const body = new URLSearchParams({
-    client_id: appId,
-    client_secret: appSecret,
-    grant_type: "authorization_code",
-    redirect_uri: redirectUri,
-    code,
-  });
+  const body = new FormData();
+  body.append("client_id", appId);
+  body.append("client_secret", appSecret);
+  body.append("grant_type", "authorization_code");
+  body.append("redirect_uri", redirectUri);
+  body.append("code", code);
 
   const res = await fetch("https://api.instagram.com/oauth/access_token", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
+    body: body,
   });
 
   const data = (await res.json()) as Record<string, unknown>;

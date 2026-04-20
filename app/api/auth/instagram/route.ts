@@ -25,8 +25,8 @@ export async function GET() {
   const url =
     `https://api.instagram.com/oauth/authorize` +
     `?client_id=${appId}` +
-    `&redirect_uri=${redirectUri}` +
-    `&scope=${scope}` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+    `&scope=${encodeURIComponent(scope)}` +
     `&response_type=code`;
   return NextResponse.redirect(url);
 }

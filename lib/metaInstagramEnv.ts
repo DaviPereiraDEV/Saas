@@ -7,16 +7,15 @@ export function getMetaOAuthConfig(): {
   redirectUri: string;
   publicBaseUrl: string;
 } {
-  const appId = process.env.META_APP_ID?.trim();
+  const appId = process.env.META_APP_ID;
+  
   const appSecret =
-    process.env.META_APP_SECRET?.trim() ||
-    process.env.INSTAGRAM_APP_SECRET?.trim();
+    process.env.META_APP_SECRET ||
+    process.env.INSTAGRAM_APP_SECRET;
 
-  const publicBaseUrl = (
-    process.env.NEXT_PUBLIC_APP_URL ?? ""
-  ).replace(/\/$/, "");
+  const publicBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
 
-  const redirectUri = process.env.META_REDIRECT_URI?.trim().replace(/\/$/, "") || "";
+  const redirectUri = process.env.META_REDIRECT_URI || "";
 
   return { appId, appSecret, redirectUri, publicBaseUrl };
 }

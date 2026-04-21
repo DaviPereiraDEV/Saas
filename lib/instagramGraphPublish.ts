@@ -31,7 +31,7 @@ export async function exchangeCodeForShortLivedToken(
   console.log("code:", code);
   console.log("code length:", code?.length);
 
-  const body = new FormData();
+  const body = new URLSearchParams();
   body.append("client_id", appId);
   body.append("client_secret", appSecret);
   body.append("grant_type", "authorization_code");
@@ -40,6 +40,9 @@ export async function exchangeCodeForShortLivedToken(
 
   const res = await fetch("https://api.instagram.com/oauth/access_token", {
     method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
     body: body,
   });
 

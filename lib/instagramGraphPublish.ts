@@ -55,7 +55,7 @@ export async function exchangeCodeForShortLivedToken(
       ? data.error
       : (data.error as { message?: string } | undefined)?.message);
   if (!res.ok || errMsg) {
-    throw new Error(errMsg || JSON.stringify(data));
+    throw new Error(`${errMsg || JSON.stringify(data)} | URI usada: "${redirectUri}"`);
   }
 
   const access_token = data.access_token as string;

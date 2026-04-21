@@ -15,7 +15,7 @@ export function getMetaOAuthConfig(): {
 
   const publicBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
 
-  const redirectUri = process.env.META_REDIRECT_URI || "";
+  const redirectUri = (process.env.META_REDIRECT_URI || "").trim();
 
   return { appId, appSecret, redirectUri, publicBaseUrl };
 }
